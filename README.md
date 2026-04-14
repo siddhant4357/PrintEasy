@@ -2,10 +2,41 @@
 
 > **Frontend Engineering Assessment** — Next.js Logic & State Management
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.3-black?logo=next.js)](https://nextjs.org)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
-[![State](https://img.shields.io/badge/State-useReducer%20%2B%20useContext-blue)](https://react.dev/reference/react/useReducer)
-[![No Redux](https://img.shields.io/badge/Redux-Banned%20%E2%9C%93-red)](https://redux.js.org)
+[![Next.js](https://img.shields.io/badge/Next.js-16.2.3-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![State](https://img.shields.io/badge/State-useReducer%20+%20useContext-7C3AED?logo=react)](https://react.dev/reference/react/useReducer)
+[![No Redux](https://img.shields.io/badge/Redux%20%2F%20Zustand-Banned%20✓-EF4444)](https://redux.js.org)
+[![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000?logo=vercel)](https://vercel.com)
+
+---
+
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="./assets/copies.png" width="240" alt="All tab — Global Configuration" />
+      <br/>
+      <b>[All] Tab — Global Config</b>
+      <br/>
+      <sub>Set copies & sides for all 3 documents at once</sub>
+    </td>
+    <td align="center">
+      <img src="./assets/fixDuplex.png" width="240" alt="Files tab — Duplex Validation Error" />
+      <br/>
+      <b>[Files] Tab — Duplex Validation</b>
+      <br/>
+      <sub>Rule 2 error shown when pages × copies &lt; 2</sub>
+    </td>
+    <td align="center">
+      <img src="./assets/order-summary.png" width="240" alt="Order Summary Modal" />
+      <br/>
+      <b>Order Summary Modal</b>
+      <br/>
+      <sub>Review modal with per-file breakdown & total</sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
@@ -21,57 +52,61 @@ The core engineering challenge is maintaining **property-level override tracking
 
 | Requirement | Status | Notes |
 |---|---|---|
-| Next.js framework | ✅ | v15.3, App Router |
-| `useState` only for local UI state | ✅ | modal open/close |
-| `useReducer` for app state | ✅ | `printReducer.js` |
-| `useContext` for state sharing | ✅ | `PrintContext.jsx` |
-| No Redux / Zustand / Recoil | ✅ | Zero external state libs |
+| Next.js framework | ✅ | v16.2.3, App Router |
+| `useReducer` for app state | ✅ | `reducers/printReducer.js` |
+| `useContext` for state sharing | ✅ | `context/PrintContext.jsx` |
+| `useState` for local UI state | ✅ | Review modal open/close |
+| No Redux / Zustand / Recoil | ✅ | Zero external state libraries |
 | No external validation libraries | ✅ | Pure JS validation |
 | `[All]` tab — global config | ✅ | Propagates to non-overridden files |
-| `[Files]` tab — per-file override | ✅ | Marks overrides per property |
-| **Rule 1** — Property-level overrides | ✅ | `Set` tracking per file |
-| **Rule 2** — Duplex validation | ✅ | `(pages × copies) >= 2` |
-| Exact error message | ✅ | From spec, in `printUtils.js` |
+| `[Files]` tab — per-file override | ✅ | Property-level `Set` tracking per file |
+| **Rule 1** — Property-level overrides | ✅ | Each file has an `overrides: Set<string>` |
+| **Rule 2** — Duplex validation | ✅ | `(originalPages × copies) >= 2` |
+| Exact error message from spec | ✅ | Defined once in `utils/printUtils.js` |
 | Static initial data (File A, B, C) | ✅ | `constants/initialData.js` |
-| Mobile responsive | ✅ | Phone-card layout |
+| Mobile responsive | ✅ | Phone-card layout, works on all screens |
 
 ---
 
 ## 🏗 Architecture
 
-### State Design
+### State Shape
 
-```
-State {
-  globalSettings: { copies: number, sides: "single" | "double" }
-  files: File[]
-  activeTab: "all" | "files"
-  selectedFileId: string
-}
-
-File {
-  id, name, originalPages   // immutable seed data
-  copies, sides             // effective values
-  overrides: Set<string>    // tracks which properties have local overrides
-  duplexError: boolean      // computed validation flag
+```js
+{
+  globalSettings: { copies: 1, sides: "single" },
+  files: [
+    {
+      id: "file-a",
+      name: "File A",
+      originalPages: 1,
+      copies: 1,              // effective value
+      sides: "single",        // effective value
+      overrides: Set(),       // tracks locally overridden properties
+      duplexError: false,     // computed validation flag
+    },
+    // ...
+  ],
+  activeTab: "all",           // "all" | "files"
+  selectedFileId: "file-a",
 }
 ```
 
 ### Rule 1 — Property-Level Overrides
 
-Each file tracks a `Set` of property keys it has locally overridden (e.g., `{ "copies" }`).
+Each file tracks a `Set<string>` of property keys that have been locally overridden (e.g. `{ "copies" }`).
 
-When a global change dispatches `SET_GLOBAL_COPIES`, the reducer checks every file:
-- `overrides.has("copies")` → **skip** this file (preserve local value)
-- Otherwise → apply the new global value
+When `SET_GLOBAL_COPIES` dispatches, the reducer iterates every file:
+- `overrides.has("copies")` → **skip** — preserve the file's local value ✓  
+- Otherwise → apply the new global value ✓
 
-This means you can override only **one** property per file while the other still follows global.
+This allows a single file to override **one** property while still inheriting the other from global settings.
 
 ```
-File A: overrides = { "copies" }
+File A: overrides = Set { "copies" }
 
-Global "Sides" → Double  →  File A's sides UPDATES ✓
-Global "Copies" → 3      →  File A's copies UNCHANGED ✓
+Global Sides → "double"   →   File A sides  UPDATES  ✓
+Global Copies → 3         →   File A copies UNCHANGED ✓  (local override preserved)
 ```
 
 ### Rule 2 — Duplex Validation
@@ -80,13 +115,15 @@ Global "Copies" → 3      →  File A's copies UNCHANGED ✓
 // utils/printUtils.js
 export const isDuplexValid = (originalPages, copies) =>
   originalPages * copies >= 2;
+
+export const DUPLEX_ERROR_MESSAGE =
+  "Insufficient pages. Add more pages or increase copies to enable Double Sided printing.";
 ```
 
-- Re-evaluated on every relevant state change
-- Stores result as `duplexError: boolean` on each file
-- Error message is the exact string from the spec
-- Error auto-clears when the user resolves the conflict
-- The Review button is disabled while any file has a duplex error
+- Validated inside the reducer on every relevant state dispatch
+- Stored as `duplexError: boolean` on each file — no render-time computation
+- Error automatically clears when the user resolves the conflict
+- Review button is disabled while any file has an active duplex error
 
 ---
 
@@ -95,33 +132,38 @@ export const isDuplexValid = (originalPages, copies) =>
 ```
 PrintEasy/
 ├── app/
-│   ├── layout.js              # Root layout, Inter font, SEO metadata
-│   ├── page.js                # Main page: assembles all components
-│   └── globals.css            # Full design system (tokens, layout, components)
+│   ├── layout.js              # Root layout, Inter font, metadata + viewport
+│   ├── page.js                # Main page — assembles all components + review modal state
+│   └── globals.css            # Complete design system (tokens, components, responsive)
 │
 ├── components/
-│   ├── DocumentPreview.jsx    # [All tab] Stacked papers + document count
-│   ├── TabBar.jsx             # All | Files | Pages tab switcher
-│   ├── FileList.jsx           # [Files tab] Selectable file cards
-│   ├── ConfigPanel.jsx        # Print Type + Copies row | Mode + Sides row
-│   ├── ValidationWarning.jsx  # Duplex error banner (exact spec message)
-│   ├── BottomBar.jsx          # Options button + Review pill
-│   └── ReviewModal.jsx        # Order summary bottom sheet (bonus UX)
+│   ├── DocumentPreview.jsx    # [All] tab — stacked papers visual + doc count + badge
+│   ├── TabBar.jsx             # All | Files | Pages tabs with yellow dot indicator
+│   ├── FileList.jsx           # [Files] tab — selectable file cards with badge states
+│   ├── ConfigPanel.jsx        # Print Type + Copies | Mode + Sides config section
+│   ├── ValidationWarning.jsx  # Duplex error banner (exact message from spec)
+│   ├── BottomBar.jsx          # Black Options square + Yellow Review pill
+│   └── ReviewModal.jsx        # Animated order summary bottom sheet (bonus UX)
 │
 ├── context/
-│   └── PrintContext.jsx       # useReducer + useContext state provider
+│   └── PrintContext.jsx       # useReducer + useContext provider
 │
 ├── reducers/
-│   └── printReducer.js        # Pure reducer — all state transitions
+│   └── printReducer.js        # Pure reducer — all actions, Rule 1 + Rule 2 logic
 │
 ├── hooks/
-│   └── usePrintConfig.js      # Ergonomic hook with typed dispatchers
+│   └── usePrintConfig.js      # Ergonomic hook — clean dispatchers + derived state
 │
 ├── utils/
-│   └── printUtils.js          # isDuplexValid(), DUPLEX_ERROR_MESSAGE
+│   └── printUtils.js          # isDuplexValid(), DUPLEX_ERROR_MESSAGE constant
 │
-└── constants/
-    └── initialData.js         # Static file seed data (File A, B, C)
+├── constants/
+│   └── initialData.js         # Static seed data: File A (1pg), File B (3pg), File C (1pg)
+│
+└── assets/
+    ├── copies.png             # Screenshot — All tab global config
+    ├── fixDuplex.png          # Screenshot — Files tab duplex validation error
+    └── order-summary.png      # Screenshot — Review order summary modal
 ```
 
 ---
@@ -129,19 +171,23 @@ PrintEasy/
 ## 🚀 Getting Started
 
 ```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/printeasy.git
+cd printeasy
+
 # Install dependencies
 npm install
 
-# Start dev server
+# Start development server
 npm run dev
-
-# Open in browser
-# http://localhost:3000
+# → http://localhost:3000
 ```
 
 ```bash
 # Production build
 npm run build
+
+# Start production server
 npm run start
 ```
 
@@ -151,41 +197,42 @@ npm run start
 
 | # | Action | Expected Result |
 |---|---|---|
-| 1 | In [All] tab: increase global Copies to 3 | All files show 3 copies |
-| 2 | In [Files] tab: set File A copies to 5 | File A shows 5, others unchanged |
-| 3 | In [All] tab: change global Copies to 2 | File A stays at 5 (override preserved) |
-| 4 | In [All] tab: set Sides to Double | File B (3 pages) updates fine; File A & C (1 page, 1 copy) show error |
-| 5 | Set File A copies to 2 | File A's error clears automatically |
-| 6 | In [Files] tab: set File A Sides to Single | File A shows Custom badge on Sides |
-| 7 | In [All] tab: set Sides to Double again | File A's sides stay Single (override preserved) |
-| 8 | With active errors: click Review | Review button is disabled |
-| 9 | Resolve all errors: click Review | Review modal opens with order summary |
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Choice | Reason |
-|---|---|---|
-| Framework | Next.js 15 (App Router) | Assignment requirement |
-| State | `useReducer` + `useContext` | Assignment requirement — no external libs |
-| Styling | Vanilla CSS | Maximum control, no framework |
-| Font | Inter (Google Fonts) | Clean, modern typography |
-| Deployment | Vercel | One-click Next.js deployment |
+| 1 | Change global Copies to 3 in **[All]** tab | All 3 files update to 3 copies |
+| 2 | Set File A copies to 5 in **[Files]** tab | File A shows 5, badge `Custom` appears |
+| 3 | Change global Copies to 2 in **[All]** tab | **File A stays at 5** — override preserved ✓ |
+| 4 | Set global Sides to **Double** | File B (3 pages × anything ≥ 1 = ≥ 2) → OK; File A & C (1 page × 1 copy = 1) → Error ✓ |
+| 5 | Increase File A copies to 2 in **[Files]** tab | File A duplex error **clears automatically** ✓ |
+| 6 | Set File A Sides to Single locally | File A shows `CUSTOM` badge on Sides |
+| 7 | Set global Sides to Double again | **File A stays Single** — Sides override preserved ✓ |
+| 8 | Any file has active duplex error | **Review button is disabled** ✓ |
+| 9 | All errors resolved → click Review | Order summary modal opens with per-file breakdown and price ✓ |
 
 ---
 
 ## 💡 Design Decisions
 
-**Why `Set` for overrides?**
-A `Set<string>` per file allows O(1) lookup and is semantically correct — it's an unordered collection of overridden property names. Using a boolean per property (e.g., `copiesOverridden: bool`) would work but doesn't scale and is less expressive.
+**Why `Set<string>` for overrides?**  
+A `Set` gives O(1) has-check and semantically models the concept perfectly — it's the set of property names a file has chosen to control locally. Using boolean flags (`copiesOverridden: bool`) would work but doesn't scale to more properties.
 
-**Why store effective values on each file?**
-Storing `copies` and `sides` directly on each file (rather than computing them from global + overrides on every render) makes the reducer logic simpler and components dumb — they just read `file.copies` and `file.sides`.
+**Why store effective values on the file, not derive from global?**  
+Storing `file.copies` and `file.sides` directly (updated by the reducer to reflect their effective value) keeps components stateless and dumb — they just read `file.copies`. No need to pass global settings down for value resolution.
 
-**Why is `duplexError` stored in state rather than computed?**
-Validation runs in the reducer on every relevant dispatch, so the error state is always in sync. Computing it during render would require prop drilling the global settings to every component.
+**Why is `duplexError` stored in state, not computed in render?**  
+Validation is run inside the reducer on every relevant dispatch, keeping state always consistent. If it were computed during render, components would need access to both the file's values AND global settings.
 
 ---
 
-*Built with ❤️ for the PrintEasy*
+## 🛠 Tech Stack
+
+| Layer | Tech | Reason |
+|---|---|---|
+| Framework | Next.js 16.2.3 (App Router) | Assignment requirement |
+| App State | `useReducer` + `useContext` | Assignment requirement — zero external state libs |
+| Local State | `useState` | Review modal open/closed |
+| Styling | Vanilla CSS + CSS Custom Properties | Full control, no framework dependency |
+| Typography | Inter — Google Fonts | Clean, modern, professional |
+| Deployment | Vercel | Zero-config Next.js deployment |
+
+---
+
+*Built with ❤️ for the PrintEasy Frontend Engineering Assessment*
