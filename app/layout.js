@@ -6,7 +6,11 @@ export const metadata = {
     "Configure print settings for multiple documents. Set copies, sides, and per-file overrides with real-time duplex validation.",
   keywords: ["PrintEasy", "print configuration", "document printing"],
   authors: [{ name: "PrintEasy" }],
-  viewport: "width=device-width, initial-scale=1",
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {
