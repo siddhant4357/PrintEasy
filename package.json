@@ -1,0 +1,21 @@
+{
+  "name": "printeasy",
+  "version": "1.0.0",
+  "description": "PrintEasy — Print Configuration Interface (Frontend Engineering Assessment)",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.3.0",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "eslint": "^8",
+    "eslint-config-next": "15.3.0"
+  }
+}
